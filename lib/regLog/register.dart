@@ -192,14 +192,10 @@ class _sRegister extends State<sRegister> {
                                 pass.toString().isNotEmpty) {
                               final createuser =
                                   await pb.Register(username, email, pass, cf);
-                              // createuser;
-                              // print(createuser);
+                              createuser;
+                             
                               Navigator.pushNamed(context, '/login');
-                              // if (createuser) {
-                              //   Navigator.pushNamed(context, '/login');
-                              // } else {
-                              //   print('ther is error');
-                              // }
+                              
                             }
                             ;
                           },

@@ -1,10 +1,7 @@
-// import 'dart:html';
-
-// import 'dart:html';
-
 import 'package:flutter/material.dart';
 import 'package:todo/pocketbase.dart';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:todo/sub_users_info/newUser.dart';
 
 class dash extends StatefulWidget {
   // const dash({super.key});
@@ -20,9 +17,12 @@ class _dashState extends State<dash> {
   bool isCreated = false;
   pbase pb = pbase();
   final pocketb = PocketBase('http://10.0.2.2:8090');
+  // final pocketb = PocketBase('http://127.0.0.1:8090');
 
   TextEditingController TaskName = TextEditingController();
   TextEditingController TaskDesc = TextEditingController();
+  TextEditingController password = TextEditingController();
+  TextEditingController conf = TextEditingController();
   TextEditingController up = TextEditingController();
   var Tasks = [];
   var TaskDes = [];
@@ -32,21 +32,52 @@ class _dashState extends State<dash> {
   bool notClick = false;
   var tappedID;
   var fkID;
+// .....................................Tasks
+  var taskLength;
+  var Tnames = [];
+  var Tdesc = [];
+  var tId = [];
+  var fD = [];
 
-  Future getPost() async {
+  var owner_of_task;
+
+  TextEditingController up1 = TextEditingController();
+  Future getTask(String fk1) async {
     final pb = PocketBase('http://10.0.2.2:8090');
     final result = await pb.collection('Tasks').getList();
 
     for (var i in result.items) {
-      var TName = i.getStringValue('TaskName');
-      var TDesc = i.getStringValue('TaskDescription');
+      var TaskName = i.getStringValue('TaskName');
+      var TaskD = i.getStringValue('TaskDescription');
       var fk = i.getStringValue('fk_id');
+
+      var id = i.id;
+      if (Tnames.contains(TaskName) == false && fk1 == fk) {
+        Tnames.add(TaskName);
+        Tdesc.add(TaskD);
+        // if()
+        tId.add(id);
+        fD.add(fk);
+      }
+    }
+  }
+
+  Future getPost() async {
+    final pb = PocketBase('http://10.0.2.2:8090');
+    final result = await pb.collection('sub_user').getList();
+
+    for (var i in result.items) {
+      var name = i.getStringValue('name');
+      // print(TName);
+      var email = i.getStringValue('email');
+      var fk = i.getStringValue('fk_id');
+      // print(fk);
       var id = i.id;
 
       // if (widget.CurrentUserID == fk) {
-      if (Tasks.contains(TName) == false && widget.CurrentUserID == fk) {
-        Tasks.add(TName);
-        TaskDes.add(TDesc);
+      if (Tasks.contains(name) == false && widget.CurrentUserID == fk) {
+        Tasks.add(name);
+        TaskDes.add(email);
         ids.add(id);
         fks.add(fk);
         // }
@@ -62,11 +93,17 @@ class _dashState extends State<dash> {
 
   @override
   Widget build(BuildContext context) {
+    getPost();
     return Scaffold(
       appBar: AppBar(
+        leading: GestureDetector(
+            onTap: () {
+              Navigator.pushNamed(context, '/login');
+            },
+            child: Icon(Icons.arrow_back)),
         backgroundColor: Colors.deepPurpleAccent,
         automaticallyImplyLeading: false,
-        title: Center(child: Text('Your Tasks Panel')),
+        title: Text('Available users'),
       ),
       body: Center(
           child: Padding(
@@ -80,12 +117,23 @@ class _dashState extends State<dash> {
                             TextFormField(
                               controller: TaskName,
                               decoration:
-                                  InputDecoration(label: Text('Task_Name')),
+                                  InputDecoration(label: Text('username')),
                             ),
                             TextFormField(
                               controller: TaskDesc,
+                              decoration:
+                                  InputDecoration(label: Text('E-mail')),
+                            ),
+                            TextFormField(
+                              controller: password,
                               decoration: InputDecoration(
-                                label: Text("Define Your Task"),
+                                label: Text("password"),
+                              ),
+                            ),
+                            TextFormField(
+                              controller: conf,
+                              decoration: InputDecoration(
+                                label: Text("confirm password"),
                               ),
                             )
                           ],
@@ -95,24 +143,55 @@ class _dashState extends State<dash> {
                             onPressed: () async {
                               setState(() {
                                 isCreated = false;
+                                // getPost();
                               });
 
-                              final createNew = await pb.registerTask(
-                                  TaskName.text,
-                                  TaskDesc.text,
-                                  widget.CurrentUserID);
+                              if (TaskName.toString().isNotEmpty &&
+                                  password.toString().isNotEmpty) {
+                                final body = <String, dynamic>{
+                                  "email": TaskDesc.text,
+                                  "emailVisibility": true,
+                                  "password": password.text,
+                                  "passwordConfirm": conf.text,
+                                  "name": TaskName.text,
+                                  "fk_id": widget.CurrentUserID
+                                };
 
+                                final record = await pocketb
+                                    .collection('sub_user')
+                                    .create(body: body);
+                                // getPost();
+                                setState(() {
+                                  getPost();
+                                });
+
+                                // print(widget.cu)
+                              }
+                              // setState(() {
+                              //   getPost();
+                              // });
                               getPost();
 
-                              createNew;
+                              password.text = '';
+                              TaskName.text = '';
+                              TaskDesc.text = '';
+                              up.text = '';
+                              conf.text = '';
+                              // print(getPost());
+                              // print(widget.CurrentUserID);
                             },
-                            child: const Text("Done"),
+
+                            // getPost();
+
+                            // createNew;
+                            // },
+                            child: const Text("Add user"),
                           ),
                         ),
                       ],
                     )
                   : FutureBuilder(
-                      future: pocketb.collection('Tasks').getList(),
+                      future: pocketb.collection('sub_user').getList(),
                       builder: (BuildContext context, AsyncSnapshot snapshot) {
                         switch (snapshot.connectionState) {
                           case ConnectionState.waiting:
@@ -129,102 +208,28 @@ class _dashState extends State<dash> {
                                     leading:
                                         CircleAvatar(child: Text('$index')),
                                     title: GestureDetector(
+                                        child: Text(Tasks[index]),
                                         onTap: () {
                                           setState(() {
                                             tappedID = ids[index];
                                             fkID = fks[index];
+                                            // print(tappedID);
+                                            // if (Tdesc.length == 0) {
+                                            // getTask(tappedID);
+                                            Navigator.push(context,
+                                                MaterialPageRoute(
+                                              builder: (context) {
+                                                return newUser(
+                                                    fromID:
+                                                        widget.CurrentUserID,
+                                                    CurrentUserID: tappedID,
+                                                    Name: Tasks[index]);
+                                              },
+                                            ));
+                                            // print(owner_of_task);
+                                            // }
                                           });
-                                          showDialog(
-                                              context: context,
-                                              builder:
-                                                  (context) =>
-                                                      StatefulBuilder(builder:
-                                                          (context, setState) {
-                                                        return AlertDialog(
-                                                            // Dialog(
-
-                                                            insetPadding:
-                                                                EdgeInsets.all(
-                                                                    30),
-                                                            actions: [
-                                                              Container(
-                                                                  decoration: BoxDecoration(
-                                                                      borderRadius:
-                                                                          BorderRadius.circular(
-                                                                              20)),
-                                                                  height: 300,
-                                                                  width: double
-                                                                      .infinity,
-                                                                  child: Column(
-                                                                      mainAxisAlignment:
-                                                                          MainAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                        SizedBox(
-                                                                          height:
-                                                                              20,
-                                                                        ),
-                                                                        Text(
-                                                                          "${Tasks[index]}",
-                                                                          style:
-                                                                              TextStyle(fontSize: 20),
-                                                                        ),
-                                                                        Divider(),
-                                                                        SizedBox(
-                                                                          height:
-                                                                              20,
-                                                                        ),
-                                                                        Padding(
-                                                                            padding:
-                                                                                EdgeInsets.only(left: 10, right: 10),
-                                                                            child: Clicked
-                                                                                ? ListTile(
-                                                                                    title: Text(
-                                                                                      TaskDes[index],
-                                                                                      style: TextStyle(fontSize: 20),
-                                                                                    ),
-                                                                                    trailing: GestureDetector(
-                                                                                      onTap: () {
-                                                                                        setState(() {
-                                                                                          Clicked = false;
-                                                                                          notClick = true;
-                                                                                        });
-                                                                                      },
-                                                                                      child: Icon(
-                                                                                        Icons.edit,
-                                                                                        color: Colors.green,
-                                                                                      ),
-                                                                                    ),
-                                                                                  )
-                                                                                : Column(
-                                                                                    children: [
-                                                                                      TextField(
-                                                                                        controller: up,
-                                                                                        decoration: InputDecoration(
-                                                                                          label: Text(TaskDes[index]),
-                                                                                        ),
-                                                                                      ),
-                                                                                      ElevatedButton(
-                                                                                          onPressed: () async {
-                                                                                            final updating = await pb.updating(Tasks[index], up.text, fks[index], ids[index]).then((value) => getPost());
-                                                                                            Navigator.push(context, MaterialPageRoute(
-                                                                                              builder: (context) {
-                                                                                                return dash(CurrentUserID: widget.CurrentUserID);
-                                                                                              },
-                                                                                            ));
-                                                                                          },
-                                                                                          child: Text('submit'))
-                                                                                    ],
-                                                                                  )),
-                                                                        SizedBox(
-                                                                          height:
-                                                                              10,
-                                                                        ),
-                                                                      ]))
-                                                            ]);
-                                                      }));
-                                        },
-                                        child: Text(Tasks[index])),
+                                        }),
                                     trailing: GestureDetector(
                                       onTap: () async {},
                                       child: GestureDetector(
@@ -255,9 +260,13 @@ class _dashState extends State<dash> {
                                                                     .spaceEvenly,
                                                             children: [
                                                               GestureDetector(
-                                                                onTap: () {
-                                                                  pb.deleting(
+                                                                onTap:
+                                                                    () async {
+                                                                  await pb.deleting(
                                                                       ids[index]);
+                                                                  // getPost();
+                                                                  // setState({})
+
                                                                   Navigator.push(
                                                                       context,
                                                                       MaterialPageRoute(
@@ -268,6 +277,7 @@ class _dashState extends State<dash> {
                                                                               widget.CurrentUserID);
                                                                     },
                                                                   ));
+                                                                  // getPost();
                                                                 },
                                                                 child: Icon(
                                                                   Icons
@@ -310,10 +320,12 @@ class _dashState extends State<dash> {
         onPressed: () {
           setState(() {
             isCreated = !isCreated;
+            getPost();
           });
         },
         child: Icon(Icons.add),
       ),
+      // ),
     );
   }
 }
